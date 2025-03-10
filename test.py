@@ -16,7 +16,7 @@ U, t=1, 1
 #--------------------------------------------------------------------------------------------
 # Data creation & save
 #--------------------------------------------------------------------------------------------
-from embedding_2site import create_and_save_data
+from embedding_4site import create_and_save_data
 create_and_save_data(U, t)
 
 
@@ -72,9 +72,7 @@ from gnn_model import MessagePass, LearningWithinSingleSpinConfiguration, Learni
 # 1. 저장 시 사용한 동일한 파라미터로 모델 인스턴스를 생성합니다.
 model = LearningBetweenSpinConfigurations(
     node_feature_dim=3,
-    edge_attr_dim=2,
-    edge_index_LBSC=edge_index_LBSC,
-    edge_attr_LBSC=edge_attr_LBSC
+    edge_attr_dim=2
     )
 
 # 2. 저장된 state dictionary를 불러옵니다.
@@ -90,7 +88,7 @@ model.eval()
 print("Model loaded successfully!")
 for step, batch in enumerate(loader):
     print(f"\n================================ BATCH {step} ================================")
-    updated_edge_attr, updated_x, estimated_coeff = model(batch)
+    updated_edge_attr, updated_x, estimated_coeff = model(batch, edge_index_LBSC=edge_index_LBSC, edge_attr_LBSC=edge_attr_LBSC)
 
     # 전파과정을 통해 update된 노드 엣지 피처와 예측된 파동함수 계수 출력.
     unique_sample_indices = batch.batch.unique().tolist()  # 배치 내 샘플 인덱스

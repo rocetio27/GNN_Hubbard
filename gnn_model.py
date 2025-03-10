@@ -118,7 +118,7 @@ class LearningWithinSingleSpinConfiguration(nn.Module):
 # 한 batch 내의 각 샘플에서 추출된 파동함수 계수들간의 상관관계를 학습하는 클래스
 #--------------------------------------------------------------------------------------------
 class LearningBetweenSpinConfigurations(nn.Module):
-    def __init__(self, node_feature_dim, edge_attr_dim, edge_index_LBSC, edge_attr_LBSC):
+    def __init__(self, node_feature_dim, edge_attr_dim):
         super(LearningBetweenSpinConfigurations, self).__init__()
         self.instance_LWSSC = LearningWithinSingleSpinConfiguration(node_feature_dim, edge_attr_dim)
         self.layer1 = MessagePass(alpha_out_dim, 1, alpha_out_dim)
@@ -128,11 +128,9 @@ class LearningBetweenSpinConfigurations(nn.Module):
             ReLU(),
             Linear(2*alpha_out_dim, 1)
         )
-        self.edge_index_LBSC=edge_index_LBSC
-        self.edge_attr_LBSC=edge_attr_LBSC
 
 
-    def forward(self, batch):
+    def forward(self, batch, edge_index_LBSC, edge_attr_LBSC):
             updated_edge_attr, updated_x, estimated_coeff = self.instance_LWSSC(
             x=batch.x, 
             edge_index=batch.edge_index,
@@ -140,8 +138,8 @@ class LearningBetweenSpinConfigurations(nn.Module):
             node_batch=batch.batch,
             edge_batch=batch.edge_batch
             )
-            edge_attr_LBSC1 ,estimated_coeff_LBSC1=self.layer1(estimated_coeff, self.edge_index_LBSC, self.edge_attr_LBSC )
-            edge_attr_LBSC2 ,estimated_coeff_LBSC2=self.layer2(estimated_coeff_LBSC1, self.edge_index_LBSC, edge_attr_LBSC1 )
+            edge_attr_LBSC1 ,estimated_coeff_LBSC1=self.layer1(estimated_coeff      , edge_index_LBSC, edge_attr_LBSC  )
+            edge_attr_LBSC2 ,estimated_coeff_LBSC2=self.layer2(estimated_coeff_LBSC1, edge_index_LBSC, edge_attr_LBSC1 )
             estimated_coeff_LBSC3=self.alpha(estimated_coeff_LBSC2)
 
             epsilon = 1e-12  # 0으로 나누는 것을 방지하기 위한 작은 상수

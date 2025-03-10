@@ -9,59 +9,47 @@ start_time = time.time()  # 시작 시간 기록
 #--------------------------------------------------------------------------------------------
 # Hubbard Params
 #--------------------------------------------------------------------------------------------
-U, t=1, 1
-
-#--------------------------------------------------------------------------------------------
-# Data creation & save
-#--------------------------------------------------------------------------------------------
-from embedding_4site import create_and_save_data
-create_and_save_data(U, t)
-
-
-#--------------------------------------------------------------------------------------------
-# Batch Making
-#--------------------------------------------------------------------------------------------
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 from torch_geometric.utils import dense_to_sparse
-node_features_all = torch.load("node_features_all.pt", weights_only=True)
-edge_attr_all = torch.load("edge_attr_all.pt", weights_only=True)
-edge_index_all = torch.load("edge_index_all.pt", weights_only=True)
-H = torch.load("H.pt", weights_only=True)
+from embedding_4site import create_and_save_data
 
 dataset_4site = []
-num_samples=edge_attr_all.size(0)
-for i in range(num_samples):
-    ea = edge_attr_all[i]
-    ei = edge_index_all[i]
-    nf = node_features_all[i]
-    data = Data(x=nf, edge_index=ei, edge_attr=ea)
-    data.edge_batch = torch.zeros(ea.size(0), dtype=torch.long)
-    dataset_4site.append(data)
+
+U_array=[1, 2, 3]
+t_array=[1, 2, 3]
+n_batches=len(U_array)*len(t_array)
+print(n_batches)
+ut_array = torch.zeros((n_batches, 2))
+count=0
+for U in U_array:
+    for t in t_array:
+        ut_array[count, 0] = U
+        ut_array[count, 1] = t
+        count += 1
+
+        #--------------------------------------------------------------------------------------------
+        # Data creation & save
+        #--------------------------------------------------------------------------------------------
+        create_and_save_data(U, t)
+
+        #--------------------------------------------------------------------------------------------
+        # Batch Making
+        #-------------------------------------------------------------------------------------------- 
+        node_features_all = torch.load("node_features_all.pt", weights_only=True)
+        edge_attr_all = torch.load("edge_attr_all.pt", weights_only=True)
+        edge_index_all = torch.load("edge_index_all.pt", weights_only=True)
+
+        # dataset_4site = []
+        num_samples=edge_attr_all.size(0)
+        for i in range(num_samples):
+            ea = edge_attr_all[i]
+            ei = edge_index_all[i]
+            nf = node_features_all[i]
+            data = Data(x=nf, edge_index=ei, edge_attr=ea)
+            data.edge_batch = torch.zeros(ea.size(0), dtype=torch.long)
+            dataset_4site.append(data)
 loader=DataLoader(dataset_4site, batch_size=num_samples, shuffle=False)
-
-
-#--------------------------------------------------------------------------------------------
-# Learning Between Spin Configurations (LBSC) 학습을위한 sample graph의 edge index 및 edge feature 생성
-# node는 LWSSC 에서 정의될 것이다.
-#--------------------------------------------------------------------------------------------
-adj = torch.ones(num_samples, num_samples)
-edge_index_LBSC, _= dense_to_sparse(adj)
-print(edge_index_LBSC)
-#tensor([[0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3], *source (bra)
-#        [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3]])*target (ket)
-# edge_index_LBSC: 2X(num_samples^2) tensor
-edge_attr_LBSC = torch.empty((0,))
-
-for i in range(num_samples):
-    for j in range(num_samples):
-        new_row = H[i, j].unsqueeze(0)  # shape: (1,)
-        edge_attr_LBSC=torch.cat([edge_attr_LBSC, new_row], dim=0)
-        # edge_attr_LBSC: (num_samples^2)X1 tensor
-edge_attr_LBSC = edge_attr_LBSC.unsqueeze(1)
-print(edge_attr_LBSC)
-#--------------------------------------------------------------------------------------------
-
 
 #--------------------------------------------------------------------------------------------
 # 학습 코드, GNN model은 gnn_model.py에 저장되어있음.
@@ -69,16 +57,14 @@ print(edge_attr_LBSC)
 from gnn_model import MessagePass, LearningWithinSingleSpinConfiguration, LearningBetweenSpinConfigurations
 import torch.optim as optim
 # 샘플별 파동함수 계수 및 에너지 저장을 위한 list 정의
-num_epochs = 500000                                               # 총 Epoch 수
+num_epochs = 50000                                              # 총 Epoch 수
 energy_real_history = []                                         # 전체 에너지 기록
 wavefunction_real_history = {i: [] for i in range(num_samples)}  # 샘플별 실수부 기록
 
 # 모델 인스턴스 정의
 instance_LBSCs=LearningBetweenSpinConfigurations(
     node_feature_dim=3,
-    edge_attr_dim=2,
-    edge_index_LBSC=edge_index_LBSC,
-    edge_attr_LBSC=edge_attr_LBSC
+    edge_attr_dim=2
     )
 
 # 모델 옵티마이저 정의
@@ -97,29 +83,47 @@ optimizer = optim.Adam(instance_LBSCs.parameters(), lr=0.001)
 # 모델 파이프라인 출력
 # print(f"\n",instance_LBSCs)
 
+#--------------------------------------------------------------------------------------------
+# Learning Between Spin Configurations (LBSC) 학습을위한 sample graph의 edge index 및 edge feature 생성
+# node는 LWSSC 에서 정의될 것이다.
+#--------------------------------------------------------------------------------------------
+adj = torch.ones(num_samples, num_samples)
+H_batch = torch.zeros(n_batches,num_samples,num_samples)
+edge_index_LBSC, _= dense_to_sparse(adj)
+print(edge_index_LBSC)
+
+edge_attr_LBSC_batch = torch.zeros((n_batches, num_samples**2, 1))
+for step, batch in enumerate(loader):
+    create_and_save_data(ut_array[step, 0].item(), ut_array[step, 1].item())
+    H = torch.load("H.pt", weights_only=True)
+    edge_attr_LBSC = torch.empty((0,))
+    for i in range(num_samples):
+        for j in range(num_samples):
+            new_row = H[i, j].unsqueeze(0)  # shape: (1,)
+            edge_attr_LBSC=torch.cat([edge_attr_LBSC, new_row], dim=0) # edge_attr_LBSC: (num_samples^2)X1 tensor
+    edge_attr_LBSC = edge_attr_LBSC.unsqueeze(1)
+    edge_attr_LBSC_batch[step]=edge_attr_LBSC
+    H_batch[step,:,:]=H
+
+
 # # >>>>>>>>>>>>>모델 옵티마이제이션
 for epoch in range(num_epochs):
     for step, batch in enumerate(loader):
+        H=H_batch[step,:,:]
+        updated_edge_attr, updated_x, estimated_coeff = instance_LBSCs(batch, edge_index_LBSC=edge_index_LBSC, edge_attr_LBSC=edge_attr_LBSC_batch[step,:])
         print(f"\n================================ BATCH {step} ================================")
-        updated_edge_attr, updated_x, estimated_coeff = instance_LBSCs(batch)
-        # 전파과정을 통해 update된 노드 엣지 피처와 예측된 파동함수 계수 출력.
         unique_sample_indices = batch.batch.unique().tolist()  # 배치 내 샘플 인덱스
         for sample_idx in unique_sample_indices:
             print(f"\n------------ SAMPLE {sample_idx} ------------")
             sample_mask = (batch.batch == sample_idx)  # 해당 샘플의 데이터 선택
             print(f"estimated_wavefunction_coeff:\n {estimated_coeff[sample_idx].item():.5f}")
-            # print(f"updated_node_feature:\n {updated_x[sample_idx:sample_idx+2,:]}")
-            # print(f"updated_edge_feature:\n {updated_edge_attr[sample_idx:sample_idx+2,:]}")
 
         # 변분원리에 기반해서 학습 파라미터 수정하기
         # 1. 변분 에너지 계산
-        energy=torch.tensor([0.0],dtype=torch.float32)
+        energy=0.0
 
         # 1.1. <Ψ|Ψ>: 모든 sample(basis)에 대해서 ground state의 내적 계산
-        psi_psi=torch.tensor([0.0],dtype=torch.float32)
-        for sample_idx in unique_sample_indices:
-            sigma_psi=estimated_coeff[sample_idx]
-            psi_psi += sigma_psi**2
+        psi_psi = (estimated_coeff ** 2).sum()
 
         # 1.2. ⟨Ψ∣H∣Ψ⟩/⟨Ψ∣Ψ⟩: 계산
         for sample_idx in unique_sample_indices:
@@ -127,7 +131,7 @@ for epoch in range(num_epochs):
             sigma_psi_sq=sigma_psi**2
             probability_sigma = sigma_psi / (psi_psi+1e-12)
 
-            E_loc_sigma=torch.tensor([0.0],dtype=torch.float32)
+            E_loc_sigma=0.0
             for sample_idxp in unique_sample_indices:
                 sigmap_psi=estimated_coeff[sample_idxp]
                 E_loc_sigma+=H[sample_idx,sample_idxp]*(sigmap_psi)
