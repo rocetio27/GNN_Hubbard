@@ -16,8 +16,8 @@ from embedding_4site import create_and_save_data
 
 dataset_4site = []
 
-U_array=[1, 2, 3]
-t_array=[1, 2, 3]
+U_array=[0, 0.25, 0.5, 0.75, 1, 1.25]
+t_array=[0, 0.25, 0.5, 0.75, 1, 1.25]
 n_batches=len(U_array)*len(t_array)
 print(n_batches)
 ut_array = torch.zeros((n_batches, 2))
@@ -63,13 +63,13 @@ wavefunction_real_history = {i: [] for i in range(num_samples)}  # 샘플별 실
 
 # 모델 인스턴스 정의
 instance_LBSCs=LearningBetweenSpinConfigurations(
-    node_feature_dim=3,
+    node_feature_dim=5,
     edge_attr_dim=2
     )
 
 # 모델 옵티마이저 정의
 # optimizer = torch.optim.SGD(instance_LBSCs.parameters(), lr=0.01, momentum=0.9)
-optimizer = optim.Adam(instance_LBSCs.parameters(), lr=0.001)
+optimizer = optim.Adam(instance_LBSCs.parameters(), lr=0.002)
 
 # 모델 불러오기
 # import os
@@ -78,7 +78,9 @@ optimizer = optim.Adam(instance_LBSCs.parameters(), lr=0.001)
 #     print("저장된 모델을 불러옵니다.")
 #     instance_LBSCs.load_state_dict(torch.load(checkpoint_path))
 # else:
-#     print("저장된 모델 파일이 없습니다. 처음부터 학습을 시작합니다.")
+#     print("저장된 모델 파일이 없습니다. 계산을 종료합니다.")
+#     quit()
+
 
 # 모델 파이프라인 출력
 # print(f"\n",instance_LBSCs)
@@ -111,10 +113,10 @@ for epoch in range(num_epochs):
     for step, batch in enumerate(loader):
         H=H_batch[step,:,:]
         updated_edge_attr, updated_x, estimated_coeff = instance_LBSCs(batch, edge_index_LBSC=edge_index_LBSC, edge_attr_LBSC=edge_attr_LBSC_batch[step,:])
-        print(f"\n================================ BATCH {step} ================================")
+        print(f"\n=============== BATCH {step} ================================")
         unique_sample_indices = batch.batch.unique().tolist()  # 배치 내 샘플 인덱스
         for sample_idx in unique_sample_indices:
-            print(f"\n------------ SAMPLE {sample_idx} ------------")
+            print(f"\n--------------- SAMPLE {sample_idx} ---------------")
             sample_mask = (batch.batch == sample_idx)  # 해당 샘플의 데이터 선택
             print(f"estimated_wavefunction_coeff:\n {estimated_coeff[sample_idx].item():.5f}")
 
@@ -154,7 +156,7 @@ for epoch in range(num_epochs):
             # 파동함수 계수 저장
             wavefunction_real_history[sample_idx].append(real_coeff)
             # wavefunction_imag_history[sample_idx].append(imag_coeff)
-        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {loss.item():.5f} Energy: {energy.item():.5f} nomalization: {psi_psi.item():.5f}")
+        print(f"Epoch {epoch+1}/{num_epochs}, Loss(Energy): {loss.item():.5f} Normalization: {psi_psi.item():.5f}")
 
 torch.save(instance_LBSCs.state_dict(), 'hubbard_4site2.pt')
 

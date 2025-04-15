@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch_geometric.nn import MessagePassing, global_mean_pool
 from torch.nn import Tanh, Sigmoid, Linear, ReLU, Sequential as Seq
-#####123
+
 dim_hidden=16
 alpha_out_dim=5
 #--------------------------------------------------------------------------------------------
