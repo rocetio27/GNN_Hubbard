@@ -1,7 +1,46 @@
 import torch
+import math
+import numpy as np
+def cal_sign(i_node_crea, i_node_anni, i_spin_anni, node_features, site_num):
+  # This function determines the sign that multiplies (-t) when -t * c†_(j,σ) * c_(i,σ) is applied to the i-th node.
+  # Here, i and j correspond to i_node_anni and i_node_crea  respectively, and i_spin_anni corresponds to i_spin_anni.
+  # i_node: 0~(N_site-1)
+  # i_spin: 0 (down) or 1 (up)
+  
+  # spin conservation
+  i_spin_crea=i_spin_anni
+  temp_node_features=node_features.clone()
+  is_occupied=temp_node_features[i_node_anni,i_spin_anni+1] # which returns 1 when a state (site,spin) is occupied
+
+  if is_occupied!=1:
+    sign=0
+  else:
+    num_occ1=0
+    for i_node in range(i_node_anni+1,site_num):
+      for i_spin in [0,1]:
+        num_occ1=num_occ1+temp_node_features[i_node,i_spin+1]
+    if i_spin_anni==0: # special consideration for the same site with (i_node_anni)-th node
+      num_occ1=num_occ1+temp_node_features[i_node_anni,1+1]
+    temp_node_features[i_node_anni,i_spin_anni+1]=0 # This results from a_(i,σ)a†_(i,σ)=1-a†_(i,σ)a_(i,σ)
+      
+    is_occupied=temp_node_features[i_node_crea,i_spin_crea+1] # which returns 1 when a state (nearest site,same spin) is occupied  
+    if is_occupied==1:
+      sign=0
+    else:
+      num_occ2=0
+      for i_node in range(i_node_crea+1,site_num):
+        for i_spin in [0,1]:
+          num_occ2=num_occ2+temp_node_features[i_node,i_spin+1]
+      if i_spin_crea==0:
+        num_occ2=num_occ2+temp_node_features[i_node_crea,1+1]
+      sign=(-1)**(num_occ1+num_occ2)
+      # sign=(num_occ2)
+  return sign
+
 def create_and_save_data(U, t):
+    site_num=6
     NCn=20
-    Size = NCn*NCn
+    basis_num = NCn*NCn
 
     sing_s1 = [0 for h in range(NCn)] #0으로 다 초기화 합시다.
     sing_s1[0]=1
@@ -137,9 +176,9 @@ def create_and_save_data(U, t):
 
     # 여기까지 각 사이트의 각 스핀의 전자수를 함 써봣다. ㅇㅋ 여기까지 처리함 #############
 
-    H_list = [[0 for w in range(Size)] for h in range(Size)] #0으로 다 초기화 합시다.
+    H_list = [[0 for w in range(basis_num)] for h in range(basis_num)] #0으로 다 초기화 합시다.
 
-    for la in range(Size):
+    for la in range(basis_num):
       H_list[la][la]=U # 일단 모든 H의 대각 요소를 U로 초기화 해준다.
 
     for la2 in range(NCn):
@@ -492,81 +531,57 @@ def create_and_save_data(U, t):
       H_list[la5+NCn*19][140+la5]=-t*(-1)**(sing_s2[19]+sing_s3[19]+sing_s4[19]+sing_s5[19]+sing_s1[la5]+sing_s2[la5]+sing_s3[la5]+sing_s4[la5]+sing_s5[la5])  # 
       H_list[la5+NCn*19][360+la5]=-t*(-1)**(sing_s3[la5])  # 
 
-
-    # 여기 까지 스핀 에 대한 호핑 텀 다 만들었다.ㅋ 휴휴휴휴휴
-    # 즉 해밀토니안 다 한 것 ㅋ
-
-    H = torch.tensor(H_list) #텐서로 만들기.  ######################################## 이녀석
-
-    #H=torch.tensor([
-    #    [U,t,-t,0],
-    #    [t,0,0,t],
-    #    [-t,0,0,-t],
-    #    [0,t,-t,U]
-    #    ], dtype=torch.float32)
+    H = torch.tensor(H_list)
     #######################################################################################
-
-    import numpy as np
-    edge_index_array=np.zeros([Size,2,6*2]) # edge_index 3차원으로 가보자
-
-    for re1 in range(Size):
-      edge_index_array[re1] = [
+    edge_index_list=[]
+    for re1 in range(basis_num):
+      edge_index_list.append(torch.tensor([
             [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 0], #source node j
             [1, 0, 2, 1, 3, 2, 4, 3, 5, 4, 0, 5]  #target node i
-        ]
-
-    edge_index_all = torch.tensor(edge_index_array,dtype=torch.long) #텐서로 만들기. ######################################## 이녀석
-
+        ], dtype=torch.long))
+    num_edges_in_one_sample = edge_index_list[1].shape[1]
     #######################################################################################
-
-    import math
-
-    node_features_array=np.zeros([Size,6,3]) # 3차원으로 가보자
-
+    node_features_list=[]
     for re2 in range(NCn):
       for re3 in range(NCn):
-          node_features_array[re2*NCn + re3] = [
-            [sing_s6[re3]*(0.5) + sing_s6[re2]*(-0.5),sing_s6[re3] + sing_s6[re2], math.floor((sing_s6[re3] + sing_s6[re2])/1.5)*U],  # Node 0: [total spin, number of occupation, onsite interaction]
-            [sing_s5[re3]*(0.5) + sing_s5[re2]*(-0.5),sing_s5[re3] + sing_s5[re2], math.floor((sing_s5[re3] + sing_s5[re2])/1.5)*U],  # Node 1
-            [sing_s4[re3]*(0.5) + sing_s4[re2]*(-0.5),sing_s4[re3] + sing_s4[re2], math.floor((sing_s4[re3] + sing_s4[re2])/1.5)*U],  
-            [sing_s3[re3]*(0.5) + sing_s3[re2]*(-0.5),sing_s3[re3] + sing_s3[re2], math.floor((sing_s3[re3] + sing_s3[re2])/1.5)*U],  
-            [sing_s2[re3]*(0.5) + sing_s2[re2]*(-0.5),sing_s2[re3] + sing_s2[re2], math.floor((sing_s2[re3] + sing_s2[re2])/1.5)*U],  # Node 5
-            [sing_s1[re3]*(0.5) + sing_s1[re2]*(-0.5),sing_s1[re3] + sing_s1[re2], math.floor((sing_s1[re3] + sing_s1[re2])/1.5)*U],  # Node 6
-        ]
-
-    node_features_all = torch.tensor(node_features_array,dtype=torch.float32) #텐서로 만들기. ######################################## 이녀석
-
-
-
+          node_features_list.append(torch.tensor([
+            [sing_s6[re3]*(0.5) + sing_s6[re2]*(-0.5), sing_s6[re3] + sing_s6[re2], math.floor((sing_s6[re3] + sing_s6[re2])/1.5)*U, math.floor((sing_s6[re3] + sing_s6[re2])/1.5)/site_num],  # Node 0
+            [sing_s5[re3]*(0.5) + sing_s5[re2]*(-0.5), sing_s5[re3] + sing_s5[re2], math.floor((sing_s5[re3] + sing_s5[re2])/1.5)*U, math.floor((sing_s5[re3] + sing_s5[re2])/1.5)/site_num],  # Node 1
+            [sing_s4[re3]*(0.5) + sing_s4[re2]*(-0.5), sing_s4[re3] + sing_s4[re2], math.floor((sing_s4[re3] + sing_s4[re2])/1.5)*U, math.floor((sing_s4[re3] + sing_s4[re2])/1.5)/site_num],  # Node 2
+            [sing_s3[re3]*(0.5) + sing_s3[re2]*(-0.5), sing_s3[re3] + sing_s3[re2], math.floor((sing_s3[re3] + sing_s3[re2])/1.5)*U, math.floor((sing_s3[re3] + sing_s3[re2])/1.5)/site_num],  # Node 3
+            [sing_s2[re3]*(0.5) + sing_s2[re2]*(-0.5), sing_s2[re3] + sing_s2[re2], math.floor((sing_s2[re3] + sing_s2[re2])/1.5)*U, math.floor((sing_s2[re3] + sing_s2[re2])/1.5)/site_num],  # Node 4
+            [sing_s1[re3]*(0.5) + sing_s1[re2]*(-0.5), sing_s1[re3] + sing_s1[re2], math.floor((sing_s1[re3] + sing_s1[re2])/1.5)*U, math.floor((sing_s1[re3] + sing_s1[re2])/1.5)/site_num],  # Node 5
+        ], dtype=torch.float32))
     #######################################################################################
-
-    edge_attr_array=np.zeros([Size,6*2,2]) # 3차원으로 가보자
-
-    for re4 in range(NCn):
-      for re5 in range(NCn):
-          edge_attr_array[re4*NCn + re5] = [
-            [sing_s6[re5]*(sing_s6[re5]-sing_s5[re5])*(-t), sing_s6[re4]*(sing_s6[re4]-sing_s5[re4])*(-t)], #12
-            [sing_s5[re5]*(sing_s5[re5]-sing_s6[re5])*(-t), sing_s5[re4]*(sing_s5[re4]-sing_s6[re4])*(-t)], #21
-            [sing_s5[re5]*(sing_s5[re5]-sing_s4[re5])*(-t), sing_s5[re4]*(sing_s5[re4]-sing_s4[re4])*(-t)], #23
-            [sing_s4[re5]*(sing_s4[re5]-sing_s5[re5])*(-t), sing_s4[re4]*(sing_s4[re4]-sing_s5[re4])*(-t)],  #32                                  
-            [sing_s4[re5]*(sing_s4[re5]-sing_s3[re5])*(-t), sing_s4[re4]*(sing_s4[re4]-sing_s3[re4])*(-t)], #
-            [sing_s3[re5]*(sing_s3[re5]-sing_s4[re5])*(-t), sing_s3[re4]*(sing_s3[re4]-sing_s4[re4])*(-t)], #
-            [sing_s3[re5]*(sing_s3[re5]-sing_s2[re5])*(-t), sing_s3[re4]*(sing_s3[re4]-sing_s2[re4])*(-t)], #
-            [sing_s2[re5]*(sing_s2[re5]-sing_s3[re5])*(-t), sing_s2[re4]*(sing_s2[re4]-sing_s3[re4])*(-t)],  #
-            [sing_s2[re5]*(sing_s2[re5]-sing_s1[re5])*(-t), sing_s2[re4]*(sing_s2[re4]-sing_s1[re4])*(-t)], #
-            [sing_s1[re5]*(sing_s1[re5]-sing_s2[re5])*(-t), sing_s1[re4]*(sing_s1[re4]-sing_s2[re4])*(-t)], #
-            [sing_s1[re5]*(sing_s1[re5]-sing_s6[re5])*(-t), sing_s1[re4]*(sing_s1[re4]-sing_s6[re4])*(-t)],  #
-            [sing_s6[re5]*(sing_s6[re5]-sing_s1[re5])*(-t), sing_s6[re4]*(sing_s6[re4]-sing_s1[re4])*(-t)], #
-        ]
-
-    edge_attr_all = torch.tensor(edge_attr_array,dtype=torch.float32) #텐서로 만들기. ######################################## 이녀석
-
-
-
+    edge_attr_list = []
+    for i_sample in range(basis_num):
+      temp_edge_index   = edge_index_list[i_sample]
+      temp_node_features= node_features_list[i_sample]
+      tensor_list=[]
+      for i_edge in range(num_edges_in_one_sample):
+        i_node_anni=temp_edge_index[0][i_edge]
+        i_node_crea=temp_edge_index[1][i_edge]
+        temp_list=[]
+        for i_spin in [1,0]: # 1-up 0-down
+          i_spin_anni=i_spin
+          sign=cal_sign(i_node_crea, i_node_anni, i_spin_anni, temp_node_features, site_num)
+          temp_list.append(-t*sign)
+        temp_tensor = torch.tensor(temp_list, dtype=torch.float32)
+        tensor_list.append(temp_tensor)
+      edge_attr_list.append(torch.stack(tensor_list, dim=0))
     ##########################################################################################
+    edge_index_all    = torch.stack(edge_index_list   , dim=0)
+    edge_attr_all     = torch.stack(edge_attr_list    , dim=0)
+    node_features_all = torch.stack(node_features_list, dim=0)
+
+    # for i, tensor in enumerate(edge_attr_list):
+    #   print(f"Sample {i}:")
+    #   print(tensor)
+    #   print()
 
     torch.save(edge_attr_all, "edge_attr_all.pt")
     torch.save(node_features_all, "node_features_all.pt")
     torch.save(edge_index_all, "edge_index_all.pt")
 
     torch.save(H, "H.pt")
+# create_and_save_data(1,1)

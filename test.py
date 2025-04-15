@@ -16,7 +16,7 @@ U, t=1, 1
 #--------------------------------------------------------------------------------------------
 # Data creation & save
 #--------------------------------------------------------------------------------------------
-from embedding_4site import create_and_save_data
+from embedding_2site import create_and_save_data
 create_and_save_data(U, t)
 
 
@@ -49,19 +49,14 @@ loader=DataLoader(dataset_4site, batch_size=num_samples, shuffle=False)
 #--------------------------------------------------------------------------------------------
 adj = torch.ones(num_samples, num_samples)
 edge_index_LBSC, _= dense_to_sparse(adj)
-print(edge_index_LBSC)
-#tensor([[0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3], *source (bra)
-#        [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3]])*target (ket)
-# edge_index_LBSC: 2X(num_samples^2) tensor
-edge_attr_LBSC = torch.empty((0,))
 
+edge_attr_LBSC = torch.empty((0,))
 for i in range(num_samples):
     for j in range(num_samples):
         new_row = H[i, j].unsqueeze(0)  # shape: (1,)
         edge_attr_LBSC=torch.cat([edge_attr_LBSC, new_row], dim=0)
         # edge_attr_LBSC: (num_samples^2)X1 tensor
 edge_attr_LBSC = edge_attr_LBSC.unsqueeze(1)
-print(edge_attr_LBSC)
 #--------------------------------------------------------------------------------------------
 
 
@@ -71,7 +66,7 @@ print(edge_attr_LBSC)
 from gnn_model import MessagePass, LearningWithinSingleSpinConfiguration, LearningBetweenSpinConfigurations
 # 1. 저장 시 사용한 동일한 파라미터로 모델 인스턴스를 생성합니다.
 model = LearningBetweenSpinConfigurations(
-    node_feature_dim=3,
+    node_feature_dim=5,
     edge_attr_dim=2
     )
 
