@@ -1,6 +1,8 @@
 import torch
 import math
 import numpy as np
+import os
+save_dir = "./inputdata"
 def cal_sign(i_node_crea, i_node_anni, i_spin_anni, node_features, site_num):
   # This function determines the sign that multiplies (-t) when -t * c†_(j,σ) * c_(i,σ) is applied to the i-th node.
   # Here, i and j correspond to i_node_anni and i_node_crea  respectively, and i_spin_anni corresponds to i_spin_anni.
@@ -37,7 +39,7 @@ def cal_sign(i_node_crea, i_node_anni, i_spin_anni, node_features, site_num):
       # sign=(num_occ2)
   return sign
 
-def create_and_save_data(U, t):
+def create_and_save_data(U, t, H_filename):
     site_num=6
     NCn=20
     basis_num = NCn*NCn
@@ -579,9 +581,10 @@ def create_and_save_data(U, t):
     #   print(tensor)
     #   print()
 
+    os.makedirs(save_dir, exist_ok=True)  # 폴더 없으면 생성
+
     torch.save(edge_attr_all, "edge_attr_all.pt")
     torch.save(node_features_all, "node_features_all.pt")
     torch.save(edge_index_all, "edge_index_all.pt")
-
-    torch.save(H, "H.pt")
+    torch.save(H, os.path.join(save_dir, H_filename))
 # create_and_save_data(1,1)

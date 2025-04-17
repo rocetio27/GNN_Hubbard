@@ -1,4 +1,6 @@
 import torch
+import os
+save_dir = "./inputdata"
 def cal_sign(i_node_crea, i_node_anni, i_spin_anni, node_features, site_num):
 	# This function determines the sign that multiplies (-t) when -t * c†_(j,σ) * c_(i,σ) is applied to the i-th node.
 	# Here, i and j correspond to i_node_anni and i_node_crea  respectively, and i_spin_anni corresponds to i_spin_anni.
@@ -36,7 +38,7 @@ def cal_sign(i_node_crea, i_node_anni, i_spin_anni, node_features, site_num):
 			# sign=(num_occ2)
 	return sign
 
-def create_and_save_data(U, t):
+def create_and_save_data(U, t, H_filename):
 	
 	site_num = 2 # 몇사이트 인가?
 	NCn=2
@@ -97,31 +99,19 @@ def create_and_save_data(U, t):
 
 	#######################################################################################
 	node_features1=torch.tensor([
-		    #before changing site numbering)
-	        #[0   , 0, 0],  # Node 0: [total spin, number of occupation, onsite interaction]
-	        #[0   , 2, U],  # Node 1
-	        #-----------------------
-	        #before separating spin occupations)
-	        #[0   , 2, U],  # Node 0: [total spin, number of occupation, onsite interaction]
-	        #[0   , 0, 0],  # Node 1
-	        #-----------------------
-	        #before adding # of doublons)
-	        # [0, 1, 1, U],  # Node 0: [total spin, occ. down, occ. up, onsite interaction]
-	        # [0, 0, 0, 0],  # Node 1
-	        #-----------------------
-	        [0, 1, 1, U, 1/site_num],  # Node 0: [total spin, occ. down, occ. up, onsite interaction, # of doubleron]
+	        [0, 1, 1, U, 1/site_num],  # Node 0: [total spin, occ. down, occ. up, onsite interaction, # of doublon]
 	        [0, 0, 0, 0, 0/site_num],  # Node 1
 	    ])
 	node_features2=torch.tensor([
-	        [1/2 , 0, 1, 0, 0/site_num],  # Node 0: [total spin, occ. down, occ. up, onsite interaction, # of doubleron]]
+	        [1/2 , 0, 1, 0, 0/site_num],  # Node 0: [total spin, occ. down, occ. up, onsite interaction, # of doublon]]
 	        [-1/2, 1, 0, 0, 0/site_num],  # Node 1
 	    ])
 	node_features3=torch.tensor([
-	        [-1/2, 1, 0, 0, 0/site_num],  # Node 0: [total spin, occ. down, occ. up, onsite interaction, # of doubleron]]
+	        [-1/2, 1, 0, 0, 0/site_num],  # Node 0: [total spin, occ. down, occ. up, onsite interaction, # of doublon]]
 	        [1/2 , 0, 1, 0, 0/site_num],  # Node 1
 	    ])
 	node_features4=torch.tensor([
-	        [0, 0, 0, 0, 0/site_num],  # Node 0: [total spin, occ. down, occ. up, onsite interaction, # of doubleron]]
+	        [0, 0, 0, 0, 0/site_num],  # Node 0: [total spin, occ. down, occ. up, onsite interaction, # of doublon]]
 	        [0, 1, 1, U, 1/site_num],  # Node 1
 	    ])
 	node_features_list = [node_features1, node_features2, node_features3, node_features4]
@@ -147,11 +137,13 @@ def create_and_save_data(U, t):
 	edge_index_all    = torch.stack(edge_index_list   , dim=0)
 	edge_attr_all     = torch.stack(edge_attr_list    , dim=0)
 	node_features_all = torch.stack(node_features_list, dim=0)
+	print(edge_attr_list)
+	
+	os.makedirs(save_dir, exist_ok=True)  # 폴더 없으면 생성
 
 	torch.save(edge_index_all   , "edge_index_all.pt   ")
 	torch.save(edge_attr_all    , "edge_attr_all.pt    ")
 	torch.save(node_features_all, "node_features_all.pt")
-
-	torch.save(H, "H.pt")
+	torch.save(H, os.path.join(save_dir, H_filename))
 
 # create_and_save_data(1,1)

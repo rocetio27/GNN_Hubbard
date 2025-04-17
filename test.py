@@ -1,5 +1,6 @@
 import torch
-
+import os
+save_dir="./inputdata"
 #--------------------------------------------------------------------------------------------
 # 계산 시간 측정
 #--------------------------------------------------------------------------------------------
@@ -17,7 +18,7 @@ U, t=1, 1
 # Data creation & save
 #--------------------------------------------------------------------------------------------
 from embedding_2site import create_and_save_data
-create_and_save_data(U, t)
+create_and_save_data(U, t, "H_test.pt")
 
 
 #--------------------------------------------------------------------------------------------
@@ -29,7 +30,7 @@ from torch_geometric.utils import dense_to_sparse
 node_features_all = torch.load("node_features_all.pt", weights_only=True)
 edge_attr_all = torch.load("edge_attr_all.pt", weights_only=True)
 edge_index_all = torch.load("edge_index_all.pt", weights_only=True)
-H = torch.load("H.pt", weights_only=True)
+H = torch.load(os.path.join(save_dir, "H_test.pt"))
 
 dataset_4site = []
 num_samples=edge_attr_all.size(0)

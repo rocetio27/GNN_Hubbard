@@ -3,18 +3,19 @@ import torch.nn as nn
 from torch_geometric.nn import MessagePassing, global_mean_pool
 from torch.nn import Tanh, Sigmoid, Linear, ReLU, Sequential as Seq
 
-dim_hidden=16
+dim_hidden=32
 alpha_out_dim=5
 #--------------------------------------------------------------------------------------------
 # Layer by layer의 Message Passing을 정의
 # 엣지 업데이트, 노드 메세지 생성 및 업데이트를 정의하는 클래스
 #--------------------------------------------------------------------------------------------
 class MessagePass(MessagePassing):
-    def __init__(self,node_feature_dim,edge_attr_dim,gamma_out_dim):
+    def __init__(self,node_feature_dim,edge_attr_dim,gamma_out_dim, edge_update):
         super(MessagePass, self).__init__(aggr='mean')  # Aggregation type: 'add', 'mean', 'max'
 
         self.node_feature_dim    =node_feature_dim
         self.edge_attr_dim    =edge_attr_dim
+        self.edge_update = edge_update
         self.concated_feature_dim=self.node_feature_dim*2+self.edge_attr_dim
         self.message_dim = self.concated_feature_dim//2
         # dim(i-node feature)+dim(j-node feature)+dim(e_ji feature)
@@ -54,7 +55,10 @@ class MessagePass(MessagePassing):
         return self.chi(concatenated)
 
     def forward(self, x, edge_index, edge_attr):
-        updated_edge_attr = self.update_edge(x, edge_index, edge_attr)
+        if self.edge_update == True:
+            updated_edge_attr = self.update_edge(x, edge_index, edge_attr)
+        else:
+            updated_edge_attr = edge_attr
         updated_x = self.propagate(edge_index, x=x, edge_attr=updated_edge_attr)
         return updated_edge_attr ,updated_x
 
@@ -88,10 +92,10 @@ class MessagePass(MessagePassing):
 class LearningWithinSingleSpinConfiguration(nn.Module):
     def __init__(self, node_feature_dim, edge_attr_dim):
         super(LearningWithinSingleSpinConfiguration, self).__init__()
-        self.layer1 = MessagePass(node_feature_dim, edge_attr_dim, node_feature_dim)
+        self.layer1 = MessagePass(node_feature_dim, edge_attr_dim, node_feature_dim, edge_update=False)
         self.layer1.print_mlps()
         print(f"############################")
-        self.layer2 = MessagePass(node_feature_dim, edge_attr_dim, node_feature_dim)
+        self.layer2 = MessagePass(node_feature_dim, edge_attr_dim, node_feature_dim, edge_update=False)
         self.layer2.print_mlps()
         print(f"############################")
         self.pooled_concat_dim=node_feature_dim+edge_attr_dim
@@ -121,8 +125,8 @@ class LearningBetweenSpinConfigurations(nn.Module):
     def __init__(self, node_feature_dim, edge_attr_dim):
         super(LearningBetweenSpinConfigurations, self).__init__()
         self.instance_LWSSC = LearningWithinSingleSpinConfiguration(node_feature_dim, edge_attr_dim)
-        self.layer1 = MessagePass(alpha_out_dim, 1, alpha_out_dim)
-        self.layer2 = MessagePass(alpha_out_dim, 1, alpha_out_dim)
+        self.layer1 = MessagePass(alpha_out_dim, 1, alpha_out_dim, edge_update=False)
+        self.layer2 = MessagePass(alpha_out_dim, 1, alpha_out_dim, edge_update=False)
         self.alpha = Seq(
             Linear(alpha_out_dim, 2*alpha_out_dim),
             ReLU(),
@@ -138,6 +142,7 @@ class LearningBetweenSpinConfigurations(nn.Module):
             node_batch=batch.batch,
             edge_batch=batch.edge_batch
             )
+            
             edge_attr_LBSC1 ,estimated_coeff_LBSC1=self.layer1(estimated_coeff      , edge_index_LBSC, edge_attr_LBSC  )
             edge_attr_LBSC2 ,estimated_coeff_LBSC2=self.layer2(estimated_coeff_LBSC1, edge_index_LBSC, edge_attr_LBSC1 )
             estimated_coeff_LBSC3=self.alpha(estimated_coeff_LBSC2)
