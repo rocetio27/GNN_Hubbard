@@ -76,8 +76,8 @@ instance_LBSCs = instance_LBSCs.to(device)
 
 
 # 모델 옵티마이저 정의
-# optimizer = torch.optim.SGD(instance_LBSCs.parameters(), lr=0.01, momentum=0.9)
-optimizer = optim.Adam(instance_LBSCs.parameters(), lr=0.001)
+optimizer = torch.optim.SGD(instance_LBSCs.parameters(), lr=0.005, momentum=0.9)
+# optimizer = optim.Adam(instance_LBSCs.parameters(), lr=0.001)
 
 # 모델 불러오기
 # import os
