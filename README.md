@@ -21,5 +21,5 @@ The repository thus covers everything from data creation and GNN training to qua
 
 > **✏️ Authorship Note**  
 > This repository is part of an **ongoing project** carried out jointly by the co-first authors  
-> **Jiwon Jeon** (<jiwon.jeon@dgist.ac.kr>) & **Gimin Bae** (<gimin.bae@dgist.ac.kr>).  
+> **Jiwon Jeon** (<rocetio27@dgist.ac.kr>) & **Gimin Bae** (<pikachuhello@dgist.ac.kr>).  
 > All results and code are still under active development and subject to change.
