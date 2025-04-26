@@ -19,3 +19,7 @@ The repository thus covers everything from data creation and GNN training to qua
 | **1** | **RL-Driven Sampler** | Formulate the MC sampler as a sequential decision process and train a **reinforcement-learning policy** that proposes low-variance, high-quality configurations to speed up convergence |
 | **2** | **Cross-Size Generalization** | Generate mini-batches that depend on **(N , U , t)** rather than just (U , t). By mixing several chain lengths in one batch and passing \(N\) as an explicit feature, a model trained on small systems can **generalization to larger size** |
 
+> **✏️ Authorship Note**  
+> This repository is part of an **ongoing project** carried out jointly by the co-first authors  
+> **Jiwon Jeon** (<jiwon.jeon@dgist.ac.kr>) & **Gimin Bae** (<gimin.bae@dgist.ac.kr>).  
+> All results and code are still under active development and subject to change.
