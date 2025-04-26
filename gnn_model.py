@@ -48,7 +48,7 @@ class MessagePass(MessagePassing):
             Linear(2*(self.node_feature_dim + self.message_dim), gamma_out_dim)
         )
 
-    def update_edge(self, x, edge_index, edge_attr):  
+    def update_edge(self, x, edge_index, edge_attr):
         src, dst=edge_index
         x_i=x[dst]
         x_j=x[src]
@@ -72,21 +72,20 @@ class MessagePass(MessagePassing):
         updated_input = torch.cat([aggr_out, x], dim=1)
         return self.gamma(updated_input)
 
-
     #-------Internal Logic of propagate-----------------------------------
     def print_mlps(self):
         """각 MLP(chi, phi, gamma)의 레이어 정보를 출력하는 함수."""
-        print("MLP for chi:")
-        for idx, layer in enumerate(self.chi):
-            print(f"  Layer {idx}: {layer}")
+        # print("MLP for chi:")
+        # for idx, layer in enumerate(self.chi):
+        #     print(f"  Layer {idx}: {layer}")
         
-        print("\nMLP for phi:")
-        for idx, layer in enumerate(self.phi):
-            print(f"  Layer {idx}: {layer}")
+        # print("\nMLP for phi:")
+        # for idx, layer in enumerate(self.phi):
+        #     print(f"  Layer {idx}: {layer}")
         
-        print("\nMLP for gamma:")
-        for idx, layer in enumerate(self.gamma):
-            print(f"  Layer {idx}: {layer}")
+        # print("\nMLP for gamma:")
+        # for idx, layer in enumerate(self.gamma):
+        #     print(f"  Layer {idx}: {layer}")
 
 #---------------------------------------------------------------------------------------------------
 # 하나의 spin configuration에 대한 학습을 정의
@@ -95,12 +94,12 @@ class MessagePass(MessagePassing):
 class LearningWithinSingleSpinConfiguration(nn.Module):
     def __init__(self, node_feature_dim, edge_attr_dim):
         super(LearningWithinSingleSpinConfiguration, self).__init__()
-        self.layer1 = MessagePass(node_feature_dim, edge_attr_dim, node_feature_dim, edge_update=False)
+        self.layer1 = MessagePass(node_feature_dim, edge_attr_dim, node_feature_dim, edge_update=True)
         self.layer1.print_mlps()
-        print(f"############################")
-        self.layer2 = MessagePass(node_feature_dim, edge_attr_dim, node_feature_dim, edge_update=False)
+        # print(f"############################")
+        self.layer2 = MessagePass(node_feature_dim, edge_attr_dim, node_feature_dim, edge_update=True)
         self.layer2.print_mlps()
-        print(f"############################")
+        # print(f"############################")
         self.pooled_concat_dim=node_feature_dim+edge_attr_dim
         self.alpha = Seq(
             Linear(self.pooled_concat_dim, 2*self.pooled_concat_dim),
@@ -129,9 +128,12 @@ class LearningWithinSingleSpinConfiguration(nn.Module):
         edge_attr1, x1 = self.layer1(x, edge_index, edge_attr)
         edge_attr2, x2 = self.layer2(x1, edge_index, edge_attr1)
         node_pooled = self.index_weighted_mean_pool(x2, node_batch, batch.ptr)
+        # print(node_pooled)
         edge_pooled = global_mean_pool(edge_attr2, edge_batch)
+        # print(edge_pooled)
         pooled_concat = torch.cat([node_pooled, edge_pooled], dim=1)
         estimated_coeff = self.alpha(pooled_concat)
+        # print(estimated_coeff)
         return edge_attr2, x2, estimated_coeff
 
 #--------------------------------------------------------------------------------------------
@@ -150,7 +152,6 @@ class LearningBetweenSpinConfigurations(nn.Module):
             Linear(2*alpha_out_dim, 1)
         )
 
-
     def forward(self, batch, edge_index_LBSC, edge_attr_LBSC):
             updated_edge_attr, updated_x, estimated_coeff = self.instance_LWSSC(
             x=batch.x, 
@@ -163,8 +164,9 @@ class LearningBetweenSpinConfigurations(nn.Module):
             
             edge_attr_LBSC1 ,estimated_coeff_LBSC1=self.layer1(estimated_coeff      , edge_index_LBSC, edge_attr_LBSC  )
             edge_attr_LBSC2 ,estimated_coeff_LBSC2=self.layer2(estimated_coeff_LBSC1, edge_index_LBSC, edge_attr_LBSC1 )
+            # print(estimated_coeff_LBSC2)
             estimated_coeff_LBSC3=self.alpha(estimated_coeff_LBSC2)
-
+            # print(estimated_coeff_LBSC3)
             epsilon = 1e-12  # 0으로 나누는 것을 방지하기 위한 작은 상수
             sum_of_squares = torch.sum(estimated_coeff_LBSC3 ** 2)
             l2_norm = torch.sqrt(sum_of_squares + epsilon)

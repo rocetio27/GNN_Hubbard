@@ -17,9 +17,8 @@ U, t=1, 1
 #--------------------------------------------------------------------------------------------
 # Data creation & save
 #--------------------------------------------------------------------------------------------
-from embedding_2site import create_and_save_data
+from generate_hubbard_inputs_4site import create_and_save_data
 create_and_save_data(U, t, "H_test.pt")
-
 
 #--------------------------------------------------------------------------------------------
 # Batch Making
@@ -27,9 +26,10 @@ create_and_save_data(U, t, "H_test.pt")
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
 from torch_geometric.utils import dense_to_sparse
-node_features_all = torch.load("node_features_all.pt", weights_only=True)
-edge_attr_all = torch.load("edge_attr_all.pt", weights_only=True)
-edge_index_all = torch.load("edge_index_all.pt", weights_only=True)
+device = torch.device('cpu')
+node_features_all = torch.load(os.path.join(save_dir, "node_features_all.pt"), map_location=device)
+edge_attr_all     = torch.load(os.path.join(save_dir, "edge_attr_all.pt"    ), map_location=device)
+edge_index_all    = torch.load(os.path.join(save_dir, "edge_index_all.pt"   ), map_location=device)
 H = torch.load(os.path.join(save_dir, "H_test.pt"))
 
 dataset_4site = []
@@ -70,15 +70,18 @@ model = LearningBetweenSpinConfigurations(
     node_feature_dim=5,
     edge_attr_dim=2
     )
+checkpoint_name = 'true_true.pt'
+# 2. 저장된 체크포인트 로드
+checkpoint = torch.load(checkpoint_name, map_location=torch.device('cpu'))
 
-# 2. 저장된 state dictionary를 불러옵니다.
-# CPU 환경에서 실행하는 경우 map_location=torch.device('cpu') 옵션을 추가합니다.
-state_dict = torch.load('hubbard_4site2.pt', map_location=torch.device('cpu'), weights_only=True)
+# 3. 모델 파라미터 로드
+model.load_state_dict(checkpoint['model_state_dict'])
 
-# 3. 불러온 state dictionary를 모델에 로드합니다.
-model.load_state_dict(state_dict)
+# 4. 누적 epoch 정보 로드 (필요한 경우)
+total_epochs = checkpoint.get('total_epoch', 0)
+print(f"total_epoch: {total_epochs}")
 
-# 4. (옵션) 평가 모드로 전환합니다.
+# 5. (옵션) 평가 모드로 전환합니다.
 model.eval()
 
 print("Model loaded successfully!")
