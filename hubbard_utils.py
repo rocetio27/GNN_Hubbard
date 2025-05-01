@@ -39,26 +39,23 @@ def cal_mat_el(i,j,node_features_list,site_num,U,t):
 	sample_i_node_features=node_features_list[i].clone()
 	sample_j_node_features=node_features_list[j].clone()
 	if i == j:
-		count_doublon=0
-		for i_node in range(site_num):
-			if sample_j_node_features[i_node,4] != 0:
-				count_doublon = count_doublon + 1
-		mat_el = count_doublon * U
+		count_doublon = (sample_j_node_features[:,4]!=0).sum().item()
+		mat_el        = count_doublon * U
 		return mat_el
 	else:
-		mat_el=0
+		mat_el = 0
+		bra    = sample_i_node_features[:,[1,2]]
 		for i_node in range(site_num):
 			for i_spin in [0,1]:
 				if sample_j_node_features[i_node, i_spin+1] == 1 or sample_j_node_features[(i_node+1)%site_num, i_spin+1] == 1:
-					bra=sample_i_node_features[:,[1,2]]
 
-					sign=cal_sign((i_node+1)%site_num, i_node, i_spin, sample_j_node_features, site_num)[0]
-					ket =cal_sign((i_node+1)%site_num, i_node, i_spin, sample_j_node_features, site_num)[1][:,[1,2]]
+					sign, ket_full = cal_sign((i_node+1)%site_num, i_node, i_spin, sample_j_node_features, site_num)
+					ket            = ket_full[:,[1,2]]
 					if torch.equal(bra, ket):
 						mat_el = mat_el + sign*(-t)
 
-					sign=cal_sign(i_node, (i_node+1)%site_num, i_spin, sample_j_node_features, site_num)[0]
-					ket =cal_sign(i_node, (i_node+1)%site_num, i_spin, sample_j_node_features, site_num)[1][:,[1,2]]
+					sign, ket_full = cal_sign(i_node, (i_node+1)%site_num, i_spin, sample_j_node_features, site_num)
+					ket            = ket_full[:,[1,2]]
 					if torch.equal(bra, ket):
 						mat_el = mat_el + sign*(-t)
 		if site_num	== 2:

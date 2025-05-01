@@ -104,8 +104,8 @@ class LearningWithinSingleSpinConfiguration(nn.Module):
         self.alpha = Seq(
             Linear(self.pooled_concat_dim, 2*self.pooled_concat_dim),
             ReLU(),
-            Linear(2*self.pooled_concat_dim, 2*self.pooled_concat_dim),
-            ReLU(),
+            # Linear(2*self.pooled_concat_dim, 2*self.pooled_concat_dim),
+            # ReLU(),
             Linear(2*self.pooled_concat_dim, alpha_out_dim)
         )
 
@@ -149,6 +149,8 @@ class LearningBetweenSpinConfigurations(nn.Module):
         self.alpha = Seq(
             Linear(alpha_out_dim, 2*alpha_out_dim),
             ReLU(),
+            # Linear(2*alpha_out_dim, 2*alpha_out_dim),
+            # ReLU(),
             Linear(2*alpha_out_dim, 1)
         )
 

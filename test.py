@@ -1,38 +1,36 @@
 import torch
 import os
-save_dir="./inputdata"
+import module
 #--------------------------------------------------------------------------------------------
 # 계산 시간 측정
 #--------------------------------------------------------------------------------------------
 import time
 start_time = time.time()  # 시작 시간 기록
 
-
 #--------------------------------------------------------------------------------------------
 # Hubbard Params
 #--------------------------------------------------------------------------------------------
 U, t=1, 1
 
-
 #--------------------------------------------------------------------------------------------
 # Data creation & save
 #--------------------------------------------------------------------------------------------
-from generate_hubbard_inputs_4site import create_and_save_data
-create_and_save_data(U, t, "H_test.pt")
+from generate_hubbard_inputs_Nsite import create_and_save_data
+create_and_save_data(2, U, t, "test")
 
 #--------------------------------------------------------------------------------------------
 # Batch Making
 #--------------------------------------------------------------------------------------------
-from torch_geometric.data import Data
+from torch_geometric.data   import Data
 from torch_geometric.loader import DataLoader
-from torch_geometric.utils import dense_to_sparse
+from torch_geometric.utils  import dense_to_sparse
 device = torch.device('cpu')
-node_features_all = torch.load(os.path.join(save_dir, "node_features_all.pt"), map_location=device)
-edge_attr_all     = torch.load(os.path.join(save_dir, "edge_attr_all.pt"    ), map_location=device)
-edge_index_all    = torch.load(os.path.join(save_dir, "edge_index_all.pt"   ), map_location=device)
-H = torch.load(os.path.join(save_dir, "H_test.pt"))
+node_features_all = torch.load(os.path.join(module.input_dir, "node_features_all_test.pt"), map_location=device)
+edge_attr_all     = torch.load(os.path.join(module.input_dir,     "edge_attr_all_test.pt"), map_location=device)
+edge_index_all    = torch.load(os.path.join(module.input_dir,    "edge_index_all_test.pt"), map_location=device)
+H                 = torch.load(os.path.join(module.input_dir,                 "H_test.pt"), map_location=device)
 
-dataset_4site = []
+graph_dataset = []
 num_samples=edge_attr_all.size(0)
 for i in range(num_samples):
     ea = edge_attr_all[i]
@@ -40,9 +38,8 @@ for i in range(num_samples):
     nf = node_features_all[i]
     data = Data(x=nf, edge_index=ei, edge_attr=ea)
     data.edge_batch = torch.zeros(ea.size(0), dtype=torch.long)
-    dataset_4site.append(data)
-loader=DataLoader(dataset_4site, batch_size=num_samples, shuffle=False)
-
+    graph_dataset.append(data)
+loader=DataLoader(graph_dataset, batch_size=num_samples, shuffle=False)
 
 #--------------------------------------------------------------------------------------------
 # Learning Between Spin Configurations (LBSC) 학습을위한 sample graph의 edge index 및 edge feature 생성
@@ -60,7 +57,6 @@ for i in range(num_samples):
 edge_attr_LBSC = edge_attr_LBSC.unsqueeze(1)
 #--------------------------------------------------------------------------------------------
 
-
 #--------------------------------------------------------------------------------------------
 # 저장된 모델을 통해 평가
 #--------------------------------------------------------------------------------------------
@@ -70,9 +66,8 @@ model = LearningBetweenSpinConfigurations(
     node_feature_dim=5,
     edge_attr_dim=2
     )
-checkpoint_name = 'true_true.pt'
 # 2. 저장된 체크포인트 로드
-checkpoint = torch.load(checkpoint_name, map_location=torch.device('cpu'))
+checkpoint = torch.load(module.checkpoint_name, map_location=torch.device('cpu'))
 
 # 3. 모델 파라미터 로드
 model.load_state_dict(checkpoint['model_state_dict'])
