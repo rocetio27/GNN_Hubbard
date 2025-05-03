@@ -82,7 +82,7 @@ from gnn_model import MessagePass, LearningWithinSingleSpinConfiguration, Learni
 import torch.optim as optim
 
 # 총 Epoch 수
-num_epochs = 2500
+num_epochs = 200000
 interval_save_epoch=100
 # 허바드 기저 간 학습 모델 인스턴스 정의
 instance_LBSCs=LearningBetweenSpinConfigurations(
@@ -174,8 +174,8 @@ for epoch in range(num_epochs):
         if step == sample_count_11 :
             print(f"Epoch {epoch+1}/{num_epochs}, Loss(Energy): {loss.item():.5f} Normalization: {psi_psi.item():.5f}")
 
-    if epoch % interval_save_epoch == 0 and epoch != 0:
-        total_epochs = total_epochs + interval_save_epoch  # 이번 학습 횟수를 누적
+    total_epochs = total_epochs+1
+    if (epoch+1) % interval_save_epoch == 0 and epoch != 0:
         checkpoint = {
             'total_epoch': total_epochs,
             'model_state_dict': instance_LBSCs.state_dict()
@@ -183,7 +183,7 @@ for epoch in range(num_epochs):
         print('model has sucessfully saved')
         torch.save(checkpoint, module.checkpoint_name)
 
-    if epoch % int(2.5*interval_save_epoch) == 0 and epoch != 0:
+    if (total_epochs) % int(2.5*interval_save_epoch) == 0 and epoch != 0:
         checkpoint = {
             'total_epoch': total_epochs,
             'model_state_dict': instance_LBSCs.state_dict()

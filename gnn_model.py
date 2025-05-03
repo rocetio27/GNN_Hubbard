@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch_geometric.nn import MessagePassing, global_mean_pool
 from torch.nn import Tanh, Sigmoid, Linear, ReLU, Sequential as Seq
+from torch.nn import LayerNorm, Dropout
 from torch_scatter import scatter
 
 dim_hidden=32
@@ -25,28 +26,35 @@ class MessagePass(MessagePassing):
         self.chi = Seq(
             Linear(self.concated_feature_dim, 2*self.concated_feature_dim),
             ReLU(),
+            # Dropout(0.1),
             Linear(2*self.concated_feature_dim, 2*self.concated_feature_dim),
             ReLU(),
+            # Dropout(0.1),
             Linear(2*self.concated_feature_dim, self.edge_attr_dim)
-        )
+            )
 
         # 노드의 메세지 생성을 위한 ϕ MLP 정의
         self.phi = Seq(
             Linear(self.concated_feature_dim, 2*self.concated_feature_dim),
             ReLU(),
+            # Dropout(0.1),
             Linear(2*self.concated_feature_dim, 2*self.concated_feature_dim),
             ReLU(),
+            # Dropout(0.1),
             Linear(2*self.concated_feature_dim, self.message_dim)
-        )
+            )
 
         # 노드의 업데이트를 위한 γ MLP 정의
+        mid_dim = 2*(self.node_feature_dim + self.message_dim)
         self.gamma = Seq(
-            Linear(self.node_feature_dim + self.message_dim, 2*(self.node_feature_dim + self.message_dim)),
+            Linear(self.node_feature_dim + self.message_dim, mid_dim),
             ReLU(),
-            Linear(2*(self.node_feature_dim + self.message_dim), 2*(self.node_feature_dim + self.message_dim)),
+            # Dropout(0.1),
+            Linear(mid_dim, mid_dim),
             ReLU(),
-            Linear(2*(self.node_feature_dim + self.message_dim), gamma_out_dim)
-        )
+            # Dropout(0.1),
+            Linear(mid_dim, gamma_out_dim)
+            )
 
     def update_edge(self, x, edge_index, edge_attr):
         src, dst=edge_index
@@ -166,10 +174,9 @@ class LearningBetweenSpinConfigurations(nn.Module):
             
             edge_attr_LBSC1 ,estimated_coeff_LBSC1=self.layer1(estimated_coeff      , edge_index_LBSC, edge_attr_LBSC  )
             edge_attr_LBSC2 ,estimated_coeff_LBSC2=self.layer2(estimated_coeff_LBSC1, edge_index_LBSC, edge_attr_LBSC1 )
-            # print(estimated_coeff_LBSC2)
             estimated_coeff_LBSC3=self.alpha(estimated_coeff_LBSC2)
-            # print(estimated_coeff_LBSC3)
-            epsilon = 1e-12  # 0으로 나누는 것을 방지하기 위한 작은 상수
+            
+            epsilon = 1e-12 
             sum_of_squares = torch.sum(estimated_coeff_LBSC3 ** 2)
             l2_norm = torch.sqrt(sum_of_squares + epsilon)
             estimated_coeff_LBSC3 = estimated_coeff_LBSC3 / l2_norm
