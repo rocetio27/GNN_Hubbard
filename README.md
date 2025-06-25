@@ -18,7 +18,3 @@ The repository thus covers everything from data creation and GNN training to qua
 | **0** | **Scalable MC Training Loop** | Integrate **Monte-Carlo (MC) sampling** into the training pipeline so the model can: <br>• learn on **larger chains \(N\)** <br>• reliably cover the **insulating (strong-coupling) regime** |
 | **1** | **RL-Driven Sampler** | Formulate the MC sampler as a sequential decision process and train a **reinforcement-learning policy** that proposes low-variance, high-quality configurations to speed up convergence |
 | **2** | **Cross-Size Generalization** | Generate mini-batches that depend on **(N , U , t)** rather than just (U , t). By mixing several chain lengths in one batch and passing \(N\) as an explicit feature, a model trained on small systems can be **generalized to larger size** |
-
-> **✏️ Authorship Note**  
-> This repository is part of an **ongoing project** carried out jointly by the co-first authors  
-> **Jiwon Jeon** (<rocetio27@dgist.ac.kr>) & **Gimin Bae** (<pikachuhello@dgist.ac.kr>).
